@@ -9,12 +9,9 @@
 #define UART_BASE  0x10000000ul
 #define UART_IRQ   10
 
-// UART
-#define UART_BASE  0x10000000ul
-#define UART_IRQ   10
-
 // platform-level interrupt controller(PLIC)
 #define PLIC_BASE 0x0c000000ul
+// PLIC寄存器区域的起始基地址，PILC是处理外部中断等的枢纽
 #define PLIC_PRIORITY(id) (PLIC_BASE + (id) * 4)
 #define PLIC_PENDING (PLIC_BASE + 0x1000)
 #define PLIC_MENABLE(hart) (PLIC_BASE + 0x2000 + (hart)*0x100)
@@ -25,10 +22,13 @@
 #define PLIC_SCLAIM(hart) (PLIC_BASE + 0x201004 + (hart)*0x2000)
 
 // core local interruptor(CLINT)
+// CLINT处理本地中断，主要是定时器中断
 #define CLINT_BASE 0x2000000ul
 #define CLINT_MSIP(hartid) (CLINT_BASE + 4 * (hartid))
 #define CLINT_MTIMECMP(hartid) (CLINT_BASE + 0x4000 + 8 * (hartid))
 #define CLINT_MTIME (CLINT_BASE + 0xBFF8)
 
+// 物理内存结束地址 (128MB)
+#define PHYSTOP (KERNEL_BASE + 128*1024*1024)
 
 #endif

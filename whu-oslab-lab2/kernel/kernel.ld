@@ -39,4 +39,9 @@ SECTIONS
   }
 
   PROVIDE(end = .);
+
+  /* 可分配物理内存区域 - 从内核结束位置到128MB */
+  . = ALIGN(0x1000);
+  PROVIDE(ALLOC_BEGIN = .);
+  PROVIDE(ALLOC_END = 0x88000000);
 }

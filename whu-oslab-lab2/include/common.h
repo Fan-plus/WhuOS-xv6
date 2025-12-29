@@ -22,4 +22,10 @@ typedef enum {false = 0, true = 1} bool;
 
 #define NCPU 2
 
+// 页面大小 4KB
+#define PGSIZE 4096
+
+// 内核保留的物理页数量（防止用户程序耗尽内存）
+#define KERNEL_PAGES 1024
+
 #endif
