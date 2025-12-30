@@ -1,5 +1,6 @@
 #include "riscv.h"
 #include "memlayout.h"
+#include "dev/timer.h"
 
 void main(void);
 
@@ -54,6 +55,9 @@ void start(void)
     int id = r_mhartid();
     w_tp(id);
     
-    // 7. mret: 跳转到 main()，同时切换到 S-mode
+    // 7. 初始化M-mode定时器中断
+    timer_init();
+    
+    // 8. mret: 跳转到 main()，同时切换到 S-mode
     asm volatile("mret");
 }
