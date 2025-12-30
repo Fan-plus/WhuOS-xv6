@@ -32,3 +32,9 @@
 #define PHYSTOP (KERNEL_BASE + 128*1024*1024)
 
 #endif
+
+/*
+PLIC和CLINT是实现中断处理的两个关键硬件组件
+CLINT产生时钟中断和软件中断，每个核心有独立的定时器
+PLIC负责管理外部设备中断（如UART键盘输入），负责中断优先级仲裁
+*/

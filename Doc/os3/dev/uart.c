@@ -26,7 +26,6 @@
 
 // 读写寄存器的宏定义
 #define Reg(reg)         ((volatile unsigned char *)(UART_BASE + reg))
-//volatile 告诉编译器：“这个地址的值可能随时发生变化（硬件会修改它），不要优化我的读写操作!"
 #define ReadReg(reg)     (*(Reg(reg)))
 #define WriteReg(reg, v) (*(Reg(reg)) = (v))
 
@@ -58,10 +57,8 @@ void uart_init(void)
 // 单个字符输出
 void uart_putc_sync(int c)
 {
-  // 关中断
   push_off();
 
-  // 如果系统崩溃了，永远等待
   while(panicked);
 
   // 等待TX队列进入idle状态
