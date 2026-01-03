@@ -7,6 +7,7 @@
 #include "memlayout.h"
 #include "syscall/sysfunc.h"
 #include "syscall/syscall.h"
+#include "dev/timer.h"
 
 // 堆伸缩
 // uint64 new_heap_top 新的堆顶 (如果是0代表查询, 返回旧的堆顶)
@@ -127,52 +128,58 @@ uint64 sys_munmap()
     return 0;
 }
 
-// copyin 测试 (int 数组)
-// uint64 addr
-// uint32 len
-// 返回 0
-uint64 sys_copyin()
+// 打印字符串
+// uint64 addr  字符串地址
+uint64 sys_print()
 {
-    proc_t* p = myproc();
-    uint64 addr;
-    uint32 len;
-
-    arg_uint64(0, &addr);
-    arg_uint32(1, &len);
-
-    int tmp;
-    for(int i = 0; i < len; i++) {
-        uvm_copyin(p->pgtbl, (uint64)&tmp, addr + i * sizeof(int), sizeof(int));
-        printf("get a number from user: %d\n", tmp);
-    }
-
+    char buf[128];
+    arg_str(0, buf, 128);
+    printf("%s", buf);
     return 0;
 }
 
-// copyout 测试 (int 数组)
-// uint64 addr
-// 返回数组元素数量
-uint64 sys_copyout()
+// 进程复制
+uint64 sys_fork()
 {
-    int L[5] = {1, 2, 3, 4, 5};
-    proc_t* p = myproc();
-    uint64 addr;
-
-    arg_uint64(0, &addr);
-    uvm_copyout(p->pgtbl, addr, (uint64)L, sizeof(int) * 5);
-
-    return 5;
+    return proc_fork();
 }
 
-// copyinstr测试
-// uint64 addr
-// 成功返回0
-uint64 sys_copyinstr()
+// 进程等待
+// uint64 addr  子进程退出时的exit_state需要放到这里 
+uint64 sys_wait()
 {
-    char s[64];
+    uint64 addr;
+    arg_uint64(0, &addr);
+    return proc_wait(addr);
+}
 
-    arg_str(0, s, 64);
-    printf("get str from user: %s\n", s);
+// 进程退出
+// int exit_state
+uint64 sys_exit()
+{
+    int exit_state;
+    arg_uint32(0, (uint32*)&exit_state);
+    proc_exit(exit_state);
+    return 0;  // 实际上不会执行到这里
+}
 
+extern timer_t sys_timer;
+
+// 进程睡眠一段时间
+// uint32 ticks 睡眠时间(以ticks为单位)
+// 成功返回0, 失败返回-1
+uint64 sys_sleep()
+{
+    uint32 n;
+    arg_uint32(0, &n);
+    
+    spinlock_acquire(&sys_timer.lk);
+    uint64 ticks0 = sys_timer.ticks;
+    
+    while (sys_timer.ticks - ticks0 < n) {
+        proc_sleep(&sys_timer.ticks, &sys_timer.lk);
+    }
+    
+    spinlock_release(&sys_timer.lk);
     return 0;
 }

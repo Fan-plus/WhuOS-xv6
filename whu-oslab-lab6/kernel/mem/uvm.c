@@ -118,10 +118,34 @@ void uvm_copy_pgtbl(pgtbl_t old, pgtbl_t new, uint64 heap_top, uint32 ustack_pag
     uint64 ustack_begin = TRAPFRAME - ustack_pages * PGSIZE;
     copy_range(old, new, ustack_begin, TRAPFRAME);
 
-    /* step-3: mmap_region (内存映射区域)*/
-    // 注意：这里传入的mmap链表记录的是"可分配"区域，不是已映射区域
-    // 已映射的区域需要通过其他方式追踪，这里暂时留空
-    // 如果需要拷贝已映射区域，需要单独实现
+    /* step-3: mmap_region (已映射的内存映射区域)*/
+    // mmap链表记录的是可分配的空闲区域
+    // 我们需要复制的是已被使用（映射）的区域
+    // 策略：遍历整个mmap地址空间，检查每个页面是否已映射
+    
+    // MMAP区域定义（与用户代码保持一致）
+    #define MMAP_END     (VA_MAX - 34 * PGSIZE)
+    #define MMAP_BEGIN   (MMAP_END - 8096 * PGSIZE)
+    
+    for (uint64 va = MMAP_BEGIN; va < MMAP_END; va += PGSIZE) {
+        pte_t* pte = vm_getpte(old, va, false);
+        // 检查页面是否已映射
+        if (pte != NULL && (*pte & PTE_V)) {
+            // 该页面已映射，需要复制
+            uint64 pa = (uint64)PTE_TO_PA(*pte);
+            int flags = (int)PTE_FLAGS(*pte);
+            
+            uint64 page = (uint64)pmem_alloc(false);
+            if (page == 0) {
+                panic("uvm_copy_pgtbl: out of memory for mmap");
+            }
+            memmove((char*)page, (const char*)pa, PGSIZE);
+            vm_mappages(new, va, page, PGSIZE, flags);
+        }
+    }
+    
+    #undef MMAP_END
+    #undef MMAP_BEGIN
 }
 
 // 在用户页表和进程mmap链里 新增mmap区域 [begin, begin + npages * PGSIZE)
