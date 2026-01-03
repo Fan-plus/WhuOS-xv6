@@ -14,10 +14,10 @@ typedef uint64* pgtbl_t;
 // mmap_region定义
 typedef struct mmap_region mmap_region_t;
 
-// context 定义
+// context 定义，需要切换进程的时候把当前寄存器保存到一个进程的ctx,然后从另一个进程的ctx恢复寄存器
 typedef struct context {
-    uint64 ra; // 返回地址
-    uint64 sp; // 栈指针
+    uint64 ra; // 返回地址：下次执行从哪里开始
+    uint64 sp; // 栈指针：栈在哪里
 
     // callee-saved
     uint64 s0;
@@ -108,14 +108,14 @@ typedef struct proc {
     int exit_state;          // 进程退出时的状态(父进程可能关心)
     void* sleep_space;       // 睡眠是为在等待什么
 
-    pgtbl_t pgtbl;           // 用户态页表
+    pgtbl_t pgtbl;           // 用户态页表，进程独有的内存空间
     uint64 heap_top;         // 用户堆顶(以字节为单位)
     uint64 ustack_pages;     // 用户栈占用的页面数量
     mmap_region_t* mmap;     // 用户可映射区域的起始节点
-    trapframe_t* tf;         // 用户态内核态切换时的运行环境暂存空间
+    trapframe_t* tf;         // 用户态内核态切换时的运行环境暂存空间，记录用户程序运行到哪里了
 
-    uint64 kstack;           // 内核栈的虚拟地址
-    context_t ctx;           // 内核态进程上下文
+    uint64 kstack;           // 内核栈的虚拟地址，记录内核态代码运行到哪里了
+    context_t ctx;           // 内核态进程上下文，内核处理这个进程时用的栈
 } proc_t;
 
 

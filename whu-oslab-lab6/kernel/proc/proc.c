@@ -160,11 +160,10 @@ void proc_init()
     // 遍历进程数组，初始化每个进程的锁和内核栈地址
     for (int i = 0; i < NPROC; i++) {
         spinlock_init(&procs[i].lk, "proc");
-        procs[i].kstack = KSTACK(i);
-        procs[i].state = UNUSED;
+        procs[i].kstack = KSTACK(i);//分配内核栈地址
+        procs[i].state = UNUSED;//标记为空闲
     }
     
-    printf("[proc] Process module initialized (NPROC=%d)\n", NPROC);
 }
 
 // 获得一个初始化过的用户页表
@@ -206,7 +205,7 @@ void proc_make_first()
 {
     uint64 page;
     
-    printf("[proc] Creating first user process (proczero)...\n");
+
     
     // 使用 proc_alloc 分配进程结构
     proczero = proc_alloc();
@@ -271,6 +270,8 @@ int proc_fork()
 {
     proc_t* p = myproc();
     
+    printf("[Debug] fork: pid %d calling fork\n", p->pid);
+    
     // 分配新进程
     proc_t* np = proc_alloc();
     if (np == NULL) {
@@ -314,10 +315,10 @@ int proc_fork()
         src_mmap = src_mmap->next;
     }
     
-    // 复制trapframe
+    // 复制trapframe,复制所有寄存器状态
     memmove(np->tf, p->tf, sizeof(trapframe_t));
     
-    // 设置子进程返回值为0（通过修改a0寄存器）
+    // 设置子进程返回值为0（通过修改a0寄存器），这样当子进程恢复执行时看到的"fork"返回值是0。而父进程继续执行，返回pid
     np->tf->a0 = 0;
     
     // 设置子进程的内核栈信息
@@ -333,6 +334,8 @@ int proc_fork()
     
     // 设置子进程状态为RUNNABLE
     np->state = RUNNABLE;
+    
+    printf("[Debug] fork: pid %d created child pid %d\n", p->pid, pid);
     
     // 释放锁
     spinlock_release(&np->lk);
@@ -360,6 +363,8 @@ int proc_wait(uint64 addr)
     proc_t* p = myproc();
     int havekids, pid;
     
+    printf("[Debug] wait: pid %d waiting for child\n", p->pid);
+    
     spinlock_acquire(&p->lk);
     
     for (;;) {
@@ -372,8 +377,12 @@ int proc_wait(uint64 addr)
                 havekids = 1;
                 
                 if (pp->state == ZOMBIE) {
-                    // 找到已退出的子进程
+                    // 找到已退出的子进程,回收子进程资源并返回子进程PID
+                    // 如果找不到ZOMBIE，就睡眠等子进程 exit时唤醒我
                     pid = pp->pid;
+                    
+                    printf("[Debug] wait: pid %d found zombie child pid %d, exit_state=%d\n", 
+                           p->pid, pid, pp->exit_state);
                     
                     // 如果用户提供了地址，复制exit_state
                     if (addr != 0) {
@@ -398,7 +407,9 @@ int proc_wait(uint64 addr)
         }
         
         // 等待子进程退出
+        printf("[Debug] wait: pid %d sleeping, waiting for child to exit\n", p->pid);
         proc_sleep(p, &p->lk);
+        printf("[Debug] wait: pid %d woken up\n", p->pid);
     }
 }
 
@@ -429,6 +440,8 @@ void proc_exit(int exit_state)
 {
     proc_t* p = myproc();
     
+    printf("[Debug] exit: pid %d exiting with state %d\n", p->pid, exit_state);
+    
     if (p == proczero) {
         panic("proc_exit: proczero exiting");
     }
@@ -437,12 +450,15 @@ void proc_exit(int exit_state)
     proc_reparent(p);
     
     // 唤醒父进程（它可能在wait中睡眠）
+    printf("[Debug] exit: pid %d waking up parent pid %d\n", p->pid, p->parent->pid);
     proc_wakeup_one(p->parent);
     
     // 获取锁，设置退出状态
     spinlock_acquire(&p->lk);
     p->exit_state = exit_state;
     p->state = ZOMBIE;
+    
+    printf("[Debug] exit: pid %d becoming ZOMBIE\n", p->pid);
     
     // 切换到调度器，永不返回
     proc_sched();
@@ -484,35 +500,41 @@ void proc_scheduler()
     cpu_t* c = mycpu();
     c->proc = NULL;
     
+    // 记录每个CPU上一次运行的进程pid，用于减少重复输出
+    static int last_pid[NCPU] = {-1, -1};
+    
+    printf("[Debug] scheduler: CPU %d entering scheduler\n", mycpuid());
+    
     for (;;) {
-        // 开启中断以处理设备中断
+        // 开启中断以处理设备中断，响应时钟
         intr_on();
         
-        int found = 0;
+        //遍历进程表，找到RUNNABLE状态的进程
         for (int i = 0; i < NPROC; i++) {
             proc_t* p = &procs[i];
             spinlock_acquire(&p->lk);
             
             if (p->state == RUNNABLE) {
-                // 找到可运行的进程，切换执行
+                // 只在切换到不同进程时输出
+                if (last_pid[mycpuid()] != p->pid) {
+                    printf("[Debug] scheduler: CPU %d -> pid %d\n", mycpuid(), p->pid);
+                    last_pid[mycpuid()] = p->pid;
+                }
+                
                 p->state = RUNNING;
                 c->proc = p;
                 
-                swtch(&c->ctx, &p->ctx);
+                swtch(&c->ctx, &p->ctx);//切换上下文
                 
-                // 进程运行完毕回到这里
+                // 进程执行完毕(被时钟中断或主动yield)回到这里
                 c->proc = NULL;
-                found = 1;
             }
             
             spinlock_release(&p->lk);
         }
         
-        // 如果没有可运行的进程，等待中断
-        if (!found) {
-            intr_on();
-            asm volatile("wfi");
-        }
+        intr_on();
+        asm volatile("wfi");// wait For interrupt
     }
 }
 
@@ -545,7 +567,7 @@ void proc_sleep(void* sleep_space, spinlock_t* lk)
     }
 }
 
-// 唤醒所有在sleep_space沉睡的进程
+// 唤醒所有在sleep_space沉睡的进程，sleep_space是一个标记，表示进程在等什么。睡眠时保存这个标记，唤醒时根据标记找到正确的进程。 此处实现用父进程自己(p)来作为sleep_space
 void proc_wakeup(void* sleep_space)
 {
     for (int i = 0; i < NPROC; i++) {
