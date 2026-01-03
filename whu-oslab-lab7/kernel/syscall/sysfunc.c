@@ -183,3 +183,13 @@ uint64 sys_sleep()
     spinlock_release(&sys_timer.lk);
     return 0;
 }
+
+// 执行一个ELF文件
+// char* path
+// char** argv
+// 成功返回argc 失败返回-1
+uint64 sys_exec()
+{
+    // TODO: 实现ELF加载器
+    return -1;
+}

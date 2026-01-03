@@ -46,6 +46,10 @@
 // 每个栈由一个guard页和一个栈页组成
 #define KSTACK(cpu) (TRAMPOLINE - ((cpu) + 1) * 2 * PGSIZE)
 
+//virtio相关
+#define VIRTIO_BASE 0x10000000ul
+#define VIRTIO_IRQ 1
+
 #endif
 
 /*

@@ -95,6 +95,13 @@ enum proc_state {
     ZOMBIE,       // 濒临死亡
 };
 
+// 每个进程的最大打开文件数
+#define FILE_PER_PROC 16
+
+// 前向声明
+typedef struct file file_t;
+typedef struct inode inode_t;
+
 // 进程定义
 typedef struct proc {
     
@@ -116,6 +123,10 @@ typedef struct proc {
 
     uint64 kstack;           // 内核栈的虚拟地址，记录内核态代码运行到哪里了
     context_t ctx;           // 内核态进程上下文，内核处理这个进程时用的栈
+
+    // 文件系统相关
+    file_t* filelist[FILE_PER_PROC];  // 文件描述符表
+    inode_t* cwd;                      // 当前工作目录
 } proc_t;
 
 

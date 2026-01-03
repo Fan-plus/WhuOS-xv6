@@ -28,4 +28,11 @@ typedef enum {false = 0, true = 1} bool;
 // 内核保留的物理页数量（防止用户程序耗尽内存）
 #define KERNEL_PAGES 1024
 
+//磁盘的block大小
+#define BLOCK_SIZE 1024
+
+// 对齐宏
+#define ALIGN_DOWN(x, align) ((x) & ~((align) - 1))
+#define ALIGN_UP(x, align)   (((x) + (align) - 1) & ~((align) - 1))
+
 #endif
