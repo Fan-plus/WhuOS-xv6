@@ -125,9 +125,17 @@ void trap_kernel_handler()
         switch (trap_id) {
             case 1: // S-mode software interrupt (由M-mode定时器中断触发)
                 timer_interrupt_handler();
+                // 如果有运行中的进程，触发调度
+                if (myproc() != NULL && myproc()->state == RUNNING) {
+                    proc_yield();
+                }
                 break;
             case 5: // S-mode timer interrupt
                 timer_interrupt_handler();
+                // 如果有运行中的进程，触发调度
+                if (myproc() != NULL && myproc()->state == RUNNING) {
+                    proc_yield();
+                }
                 break;
             case 9: // S-mode external interrupt
                 external_interrupt_handler();

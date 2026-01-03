@@ -1,7 +1,9 @@
 #include "lib/print.h"
 #include "trap/trap.h"
 #include "proc/cpu.h"
+#include "proc/proc.h"
 #include "mem/vmem.h"
+#include "syscall/syscall.h"
 #include "memlayout.h"
 #include "riscv.h"
 
@@ -44,11 +46,15 @@ void trap_user_handler()
     if (is_interrupt) {
         // 中断处理
         switch (trap_id) {
-            case 1: // S-mode software interrupt
+            case 1: // S-mode software interrupt (时钟中断)
                 timer_interrupt_handler();
+                // 时钟中断后触发进程调度
+                proc_yield();
                 break;
             case 5: // S-mode timer interrupt
                 timer_interrupt_handler();
+                // 时钟中断后触发进程调度
+                proc_yield();
                 break;
             case 9: // S-mode external interrupt
                 external_interrupt_handler();
@@ -62,24 +68,14 @@ void trap_user_handler()
         }
     } else {
         // 异常处理
-        static int syscall_count = 0;  // 系统调用计数器
-        
         switch (trap_id) {
             case 8: // Environment call from U-mode (系统调用)
-                syscall_count++;
-                printf("[syscall] User process (pid=%d) issued system call #%d\n", p->pid, syscall_count);
                 // 系统调用返回后，epc需要指向下一条指令
                 p->tf->epc += 4;
-                
-                // 在第三次系统调用后，提示用户进程即将进入死循环
-                if (syscall_count == 3) {
-                    printf("\n========================================\n");
-                    printf("  User Process Execution Complete!\n");
-                    printf("========================================\n");
-                    printf("\n[Result] proczero executed 3 system calls successfully.\n");
-                    printf("[Result] CPU 0 is now trapped in user-mode infinite loop.\n");
-                    printf("[Result] Other CPUs are trapped in main() idle loop.\n\n");
-                }
+                // 开启中断以允许系统调用期间被抢占
+                intr_on();
+                // 调用系统调用处理函数
+                syscall();
                 break;
             default:
                 printf("user exception: %s (trap_id=%d)\n", 

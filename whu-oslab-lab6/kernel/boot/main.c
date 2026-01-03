@@ -5,6 +5,7 @@
 #include "dev/plic.h"
 #include "mem/pmem.h"
 #include "mem/vmem.h"
+#include "mem/mmap.h"
 #include "trap/trap.h"
 #include "proc/proc.h"
 
@@ -18,7 +19,7 @@ int main()
         // CPU 0 进行初始化
         print_init();
         printf("\n");
-        printf("  xv6-riscv Lab5\n");
+        printf("  xv6-riscv Lab6 - Process Management\n");
         printf("========================================\n\n");
         
         printf("Physical memory initialization...\n");
@@ -43,6 +44,14 @@ int main()
         plic_inithart();
         uart_init();
         printf("Done.\n\n");
+
+        printf("MMAP region pool initialization...\n");
+        mmap_init();
+        printf("Done.\n\n");
+        
+        printf("Process module initialization...\n");
+        proc_init();
+        printf("Done.\n\n");
         
         printf("Enabling S-mode interrupts...\n");
         intr_on();
@@ -56,12 +65,16 @@ int main()
         printf("Creating First User Process (proczero)\n");
         printf("========================================\n\n");
         
-        // 创建并切换到第一个用户进程
-        proc_make_fisrt();
+        // 创建第一个用户进程
+        proc_make_first();
         
-        // 如果用户进程返回内核（不应该发生）
-        printf("CPU %d: User process returned to kernel, entering idle loop...\n", cpuid);
-        while(1);
+        printf("Entering scheduler on CPU %d...\n\n", cpuid);
+        
+        // 进入调度器，永不返回
+        proc_scheduler();
+        
+        // 不应该到达这里
+        panic("scheduler returned");
         
     } else {
         // 其他CPU等待CPU 0初始化完成
@@ -78,9 +91,13 @@ int main()
         // 开启S-mode中断
         intr_on();
         
-        printf("CPU %d: Initialization complete, entering idle loop in main()...\n", cpuid);
+        printf("CPU %d: Initialization complete, entering scheduler...\n", cpuid);
         
-        while(1);
+        // 进入调度器
+        proc_scheduler();
+        
+        // 不应该到达这里
+        panic("scheduler returned");
     }
     
     return 0;
