@@ -1,4 +1,4 @@
-# whu-oslab-lab5
+# whu-oslab-lab6
 
 此分支为实验六:进程管理
 
