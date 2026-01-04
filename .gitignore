@@ -57,4 +57,3 @@ dkms.conf
 .vscode/
 draft/
 kernel-qemu
-xv6-riscv/
