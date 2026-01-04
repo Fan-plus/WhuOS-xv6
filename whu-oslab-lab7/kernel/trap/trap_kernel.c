@@ -2,6 +2,7 @@
 #include "dev/timer.h"
 #include "dev/uart.h"
 #include "dev/plic.h"
+#include "dev/vio.h"
 #include "trap/trap.h"
 #include "proc/proc.h"
 #include "proc/cpu.h"
@@ -76,6 +77,9 @@ void external_interrupt_handler()
     if (irq == UART_IRQ) {
         // UART中断处理
         uart_intr();
+    } else if (irq == VIRTIO_IRQ) {
+        // VIRTIO磁盘中断处理
+        virtio_disk_intr();
     } else if (irq != 0) {
         // 未知的外部中断
         printf("unexpected external interrupt irq=%d\n", irq);

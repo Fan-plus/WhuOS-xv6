@@ -27,7 +27,20 @@ static void sb_print()
     printf("data start = %d\n", sb.data_start);
 }
 
-// 文件系统初始化
+// 测试用的辅助数据
+static uint8 str[BLOCK_SIZE * 2];
+static uint8 tmp[BLOCK_SIZE * 2];
+
+// 比较两个缓冲区
+static bool blockcmp(uint8* a, uint8* b)
+{
+    for(int i = 0; i < BLOCK_SIZE * 2; i++) {
+        if(a[i] != b[i]) return false;
+    }
+    return true;
+}
+
+// 文件系统初始化 + inode读写测试
 void fs_init()
 {
     buf_init();
@@ -40,5 +53,52 @@ void fs_init()
     buf_release(buf);
     sb_print();
 
+    // ========== inode读写测试开始 ==========
+    printf("\n========== INODE READ/WRITE TEST ==========\n");
+    
+    // inode初始化
     inode_init();
+    uint32 ret = 0;
+
+    for(int i = 0; i < BLOCK_SIZE * 2; i++)
+        str[i] = (uint8)i;
+
+    // 创建新的inode
+    inode_t* nip = inode_create(FT_FILE, 0, 0);
+    inode_lock(nip);
+    
+    // 第一次查看
+    printf("\n[1] Initial inode state:\n");
+    inode_print(nip);
+
+    // 第一次写入
+    ret = inode_write_data(nip, 0, BLOCK_SIZE / 2, str, false);
+    printf("\n[2] First write: %d bytes (expected %d)\n", ret, BLOCK_SIZE / 2);
+    assert(ret == BLOCK_SIZE / 2, "inode_write_data: fail");
+
+    // 第二次写入
+    ret = inode_write_data(nip, BLOCK_SIZE / 2, BLOCK_SIZE + BLOCK_SIZE / 2, str + BLOCK_SIZE / 2, false);
+    printf("[3] Second write: %d bytes (expected %d)\n", ret, BLOCK_SIZE + BLOCK_SIZE / 2);
+    assert(ret == BLOCK_SIZE + BLOCK_SIZE / 2, "inode_write_data: fail");
+
+    // 一次读取
+    ret = inode_read_data(nip, 0, BLOCK_SIZE * 2, tmp, false);
+    printf("[4] Read: %d bytes (expected %d)\n", ret, BLOCK_SIZE * 2);
+    assert(ret == BLOCK_SIZE * 2, "inode_read_data: fail");
+
+    // 第二次查看
+    printf("\n[5] Final inode state:\n");
+    inode_print(nip);
+    
+    inode_unlock_free(nip);
+
+    // 测试结果
+    printf("\n========== TEST RESULT ==========\n");
+    if(blockcmp(tmp, str) == true)
+        printf(">>> INODE READ/WRITE TEST: SUCCESS <<<\n");
+    else
+        printf(">>> INODE READ/WRITE TEST: FAILED <<<\n");
+
+    printf("=================================\n");
+    while (1); 
 }

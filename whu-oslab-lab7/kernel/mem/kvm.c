@@ -259,6 +259,9 @@ static pgtbl_t kvm_make(void)
     // 映射 CLINT 定时器控制器
     kvm_map(kpgtbl, CLINT_BASE, CLINT_BASE, 0x10000, PTE_R | PTE_W);
 
+    // 映射 VIRTIO 磁盘设备
+    kvm_map(kpgtbl, VIRTIO_BASE, VIRTIO_BASE, PGSIZE, PTE_R | PTE_W);
+
     // 映射内核代码段（只读可执行）,不能写防止内核代码被意外修改
     kvm_map(kpgtbl, KERNEL_BASE, KERNEL_BASE, (uint64)etext - KERNEL_BASE, PTE_R | PTE_X);
 

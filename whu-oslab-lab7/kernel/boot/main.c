@@ -3,11 +3,13 @@
 #include "dev/uart.h"
 #include "dev/timer.h"
 #include "dev/plic.h"
+#include "dev/vio.h"
 #include "mem/pmem.h"
 #include "mem/vmem.h"
 #include "mem/mmap.h"
 #include "trap/trap.h"
 #include "proc/proc.h"
+#include "fs/fs.h"
 
 volatile static int started = 0;
 
@@ -26,44 +28,25 @@ int main()
         plic_init();
         plic_inithart();
         uart_init();
+        virtio_disk_init();
         mmap_init();
         proc_init();
         intr_on();
         
         printf("\n");
-        printf("  xv6-riscv Lab6 - Process Management\n");
-        printf("========================================\n\n");
+        printf("  xv6-riscv Lab7 - File System Test\n");
+        printf("=====================================\n");
         
-        __sync_synchronize();
-        started = 1;
+        printf("[main] calling virtio_disk_init...\n");
+        virtio_disk_init();
+        printf("[main] virtio_disk_init done\n");
         
-        // 创建第一个用户进程
-        printf("[Debug] main: CPU %d creating first user process\n", cpuid);
-        proc_make_first();
+        printf("[main] calling fs_init...\n");
+        // 文件系统初始化 + 测试
+        fs_init();
         
-        printf("[Debug] main: CPU %d entering scheduler\n", cpuid);
-        
-        // 进入调度器，永不返回
-        proc_scheduler();
-        
-        panic("scheduler returned");
-        
-    } else {
-        // 其他CPU等待CPU 0初始化完成
-        while(started == 0);
-        __sync_synchronize();
-        
-        kvm_inithart();
-        trap_kernel_inithart();
-        plic_inithart();
-        intr_on();
-        
-        printf("[Debug] main: CPU %d initialized, entering scheduler\n", cpuid);
-        
-        // 进入调度器
-        proc_scheduler();
-        
-        panic("scheduler returned");
+        // fs_init中会阻塞在while(1)，不会到达下面
+        panic("fs_init returned");
     }
     
     return 0;

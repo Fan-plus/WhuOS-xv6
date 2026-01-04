@@ -47,7 +47,7 @@
 #define KSTACK(cpu) (TRAMPOLINE - ((cpu) + 1) * 2 * PGSIZE)
 
 //virtio相关
-#define VIRTIO_BASE 0x10000000ul
+#define VIRTIO_BASE 0x10001000ul
 #define VIRTIO_IRQ 1
 
 #endif

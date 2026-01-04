@@ -172,6 +172,8 @@ alloc3_desc(int *idx)
     return 0;
 }
 
+extern pgtbl_t kernel_pagetable;
+
 void virtio_disk_rw(buf_t *b, bool write)
 {
     uint64 sector = b->block_num * (BLOCK_SIZE / 512);
@@ -190,7 +192,9 @@ void virtio_disk_rw(buf_t *b, bool write)
         {
             break;
         }
-        proc_sleep(&disk.free[0], &disk.vdisk_lock);
+        // 无进程时自旋等待
+        spinlock_release(&disk.vdisk_lock);
+        spinlock_acquire(&disk.vdisk_lock);
     }
 
     // format the three descriptors.
@@ -215,7 +219,7 @@ void virtio_disk_rw(buf_t *b, bool write)
     uint64 addr = ALIGN_DOWN((uint64)&buf0, PGSIZE);
     uint64 off  = ((uint64)&buf0) % PGSIZE;
 
-    pte_t* pte = vm_getpte(NULL, addr, false);
+    pte_t* pte = vm_getpte(kernel_pagetable, addr, false);
     disk.desc[idx[0]].addr = (uint64)PTE_TO_PA(*pte) + off;
     disk.desc[idx[0]].len = sizeof(buf0);
     disk.desc[idx[0]].flags = VRING_DESC_F_NEXT;
@@ -253,7 +257,9 @@ void virtio_disk_rw(buf_t *b, bool write)
     // Wait for virtio_disk_intr() to say request has finished.
     while (b->disk == true)
     {
-        proc_sleep(b, &disk.vdisk_lock);
+        // 无进程时自旋等待
+        spinlock_release(&disk.vdisk_lock);
+        spinlock_acquire(&disk.vdisk_lock);
     }
 
     disk.info[idx[0]].b = 0;
